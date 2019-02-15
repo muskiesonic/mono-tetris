@@ -1,4 +1,5 @@
-﻿using Microsoft.Xna.Framework;
+﻿using System.Collections.Generic;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 
@@ -11,6 +12,8 @@ namespace mono_tetris.Desktop
     {
         GraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;
+        Texture2D redBlockTexture;
+        List<Tetromino> pieces;
 
         public Game1()
         {
@@ -26,7 +29,11 @@ namespace mono_tetris.Desktop
         /// </summary>
         protected override void Initialize()
         {
-            // TODO: Add your initialization logic here
+            redBlockTexture = new Texture2D(GraphicsDevice, Tetromino.HEIGHT, Tetromino.WIDTH);
+            Color[] colorData = new Color[Tetromino.HEIGHT * Tetromino.WIDTH];
+            for (var i = 0; i < Tetromino.HEIGHT * Tetromino.WIDTH; i++)
+                colorData[i] = Color.Red;
+            redBlockTexture.SetData<Color>(colorData);
 
             base.Initialize();
         }
@@ -40,7 +47,14 @@ namespace mono_tetris.Desktop
             // Create a new SpriteBatch, which can be used to draw textures.
             spriteBatch = new SpriteBatch(GraphicsDevice);
 
-            // TODO: use this.Content to load your game content here
+            pieces = new List<Tetromino>();
+            pieces.Add(Tetromino.Square(redBlockTexture, new Vector2(2 * Tetromino.WIDTH, 2 * Tetromino.HEIGHT)));
+            pieces.Add(Tetromino.I(redBlockTexture, new Vector2(7 * Tetromino.WIDTH, 2 * Tetromino.HEIGHT)));
+            pieces.Add(Tetromino.Z(redBlockTexture, new Vector2(10 * Tetromino.WIDTH, 2 * Tetromino.HEIGHT)));
+            pieces.Add(Tetromino.S(redBlockTexture, new Vector2(16 * Tetromino.WIDTH, 2 * Tetromino.HEIGHT)));
+            pieces.Add(Tetromino.T(redBlockTexture, new Vector2(21 * Tetromino.WIDTH, 2 * Tetromino.HEIGHT)));
+            pieces.Add(Tetromino.L(redBlockTexture, new Vector2(27 * Tetromino.WIDTH, 2 * Tetromino.HEIGHT)));
+            pieces.Add(Tetromino.BackwardsL(redBlockTexture, new Vector2(31 * Tetromino.WIDTH, 2 * Tetromino.HEIGHT)));
         }
 
         /// <summary>
@@ -75,7 +89,10 @@ namespace mono_tetris.Desktop
         {
             GraphicsDevice.Clear(Color.CornflowerBlue);
 
-            // TODO: Add your drawing code here
+            spriteBatch.Begin();
+            foreach (var piece in pieces)
+                piece.Draw(spriteBatch);
+            spriteBatch.End();
 
             base.Draw(gameTime);
         }
