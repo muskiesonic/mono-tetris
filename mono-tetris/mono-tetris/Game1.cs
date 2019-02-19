@@ -12,8 +12,12 @@ namespace mono_tetris.Desktop
     {
         GraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;
+        KeyboardState previousKeyState;
         Texture2D redBlockTexture;
-        List<Tetromino> pieces;
+        Tetromino currentPiece;
+        float fallSpeed = Tetromino.HEIGHT;
+        float moveSpeed = Tetromino.WIDTH * 5;
+        float rotateSpeed = Tetromino.WIDTH * 2;
 
         public Game1()
         {
@@ -35,6 +39,8 @@ namespace mono_tetris.Desktop
                 colorData[i] = Color.Red;
             redBlockTexture.SetData<Color>(colorData);
 
+            previousKeyState = Keyboard.GetState();
+
             base.Initialize();
         }
 
@@ -47,14 +53,7 @@ namespace mono_tetris.Desktop
             // Create a new SpriteBatch, which can be used to draw textures.
             spriteBatch = new SpriteBatch(GraphicsDevice);
 
-            pieces = new List<Tetromino>();
-            pieces.Add(Tetromino.Square(redBlockTexture, new Vector2(2 * Tetromino.WIDTH, 2 * Tetromino.HEIGHT)));
-            pieces.Add(Tetromino.I(redBlockTexture, new Vector2(7 * Tetromino.WIDTH, 2 * Tetromino.HEIGHT)));
-            pieces.Add(Tetromino.Z(redBlockTexture, new Vector2(10 * Tetromino.WIDTH, 2 * Tetromino.HEIGHT)));
-            pieces.Add(Tetromino.S(redBlockTexture, new Vector2(16 * Tetromino.WIDTH, 2 * Tetromino.HEIGHT)));
-            pieces.Add(Tetromino.T(redBlockTexture, new Vector2(21 * Tetromino.WIDTH, 2 * Tetromino.HEIGHT)));
-            pieces.Add(Tetromino.L(redBlockTexture, new Vector2(27 * Tetromino.WIDTH, 2 * Tetromino.HEIGHT)));
-            pieces.Add(Tetromino.BackwardsL(redBlockTexture, new Vector2(31 * Tetromino.WIDTH, 2 * Tetromino.HEIGHT)));
+            currentPiece = Tetromino.T(redBlockTexture, new Vector2(21 * Tetromino.WIDTH, 2 * Tetromino.HEIGHT));
         }
 
         /// <summary>
@@ -76,7 +75,33 @@ namespace mono_tetris.Desktop
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
 
-            // TODO: Add your update logic here
+            var keyState = Keyboard.GetState();
+
+            if (keyState.IsKeyDown(Keys.Left))
+            {
+                if (!previousKeyState.IsKeyDown(Keys.Left))
+                    currentPiece.ShiftLeft(1);
+                else
+                    currentPiece.MoveLeft((float)(gameTime.ElapsedGameTime.TotalSeconds * moveSpeed));
+            }
+            else if (keyState.IsKeyDown(Keys.Right))
+            {
+                if (!previousKeyState.IsKeyDown(Keys.Right))
+                    currentPiece.ShiftRight(1);
+                else
+                    currentPiece.MoveRight((float)(gameTime.ElapsedGameTime.TotalSeconds * moveSpeed));
+            }
+            else if (keyState.IsKeyDown(Keys.Space))
+            {
+                if (!previousKeyState.IsKeyDown(Keys.Space))
+                    currentPiece.RotateRight(1);
+                else
+                    currentPiece.RotateRight((float)(gameTime.ElapsedGameTime.TotalSeconds * rotateSpeed));
+            }
+
+            previousKeyState = keyState;
+
+            currentPiece.MoveDown((float)(gameTime.ElapsedGameTime.TotalSeconds * fallSpeed));
 
             base.Update(gameTime);
         }
@@ -90,8 +115,7 @@ namespace mono_tetris.Desktop
             GraphicsDevice.Clear(Color.CornflowerBlue);
 
             spriteBatch.Begin();
-            foreach (var piece in pieces)
-                piece.Draw(spriteBatch);
+            currentPiece.Draw(spriteBatch);
             spriteBatch.End();
 
             base.Draw(gameTime);
