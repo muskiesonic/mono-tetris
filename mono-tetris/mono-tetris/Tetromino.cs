@@ -5,98 +5,71 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace mono_tetris.Desktop
 {
-    public class Tetromino
+    public enum SpinState
+    {
+        Zero,
+        Ninety,
+        OneEighty,
+        TwoSixty
+    };
+
+    public abstract class Tetromino
     {
         public static short HEIGHT = 16;
         public static short WIDTH = 16;
 
-        //public static Tetromino Square(Texture2D texture)
-        //{
-        //    var blocks = new short[,]
-        //    {
-        //        {1, 1},
-        //        {1, 1}
-        //    };
-        //    return new Tetromino(texture, blocks);
-        //}
-
-        //public static Tetromino I(Texture2D texture)
-        //{
-        //    var blocks = new short[,]
-        //    {
-        //        {1},
-        //        {1},
-        //        {1},
-        //        {1}
-        //    };
-        //    return new Tetromino(texture, blocks);
-        //}
-
-        //public static Tetromino Z(Texture2D texture)
-        //{
-        //    var blocks = new short[,]
-        //    {
-        //        {1, 1, 0},
-        //        {0, 1, 1}
-        //    };
-        //    return new Tetromino(texture, blocks);
-        //}
-
-        //public static Tetromino S(Texture2D texture)
-        //{
-        //    var blocks = new short[,]
-        //    {
-        //        {0, 1, 1},
-        //        {1, 1, 0}
-        //    };
-        //    return new Tetromino(texture, blocks);
-        //}
-
         public static Tetromino T(Gameboard parent, Texture2D texture)
         {
-            var piece = new Tetromino(parent, new Vector2(2, 2));
-            piece.Blocks.Add(new Block(piece, texture, new Vector2(0, 1)));
-            piece.Blocks.Add(new Block(piece, texture, new Vector2(1, 1)));
-            piece.Blocks.Add(new Block(piece, texture, new Vector2(2, 1)));
-            piece.Blocks.Add(new Block(piece, texture, new Vector2(1, 2)));
-            return piece;
+            return new TTetrimino(parent, texture);
         }
 
-        //public static Tetromino L(Texture2D texture)
-        //{
-        //    var blocks = new short[,]
-        //    {
-        //        {1, 0},
-        //        {1, 0},
-        //        {1, 1}
-        //    };
-        //    return new Tetromino(texture, blocks);
-        //}
+        protected Vector2[] wk_zeroNinety = new Vector2[]
+        { 
+            new Vector2(-1,  0),
+            new Vector2(-1,  1),
+            new Vector2( 0, -1),
+            new Vector2(-1, -1)
+        };
 
-        //public static Tetromino BackwardsL(Texture2D texture)
-        //{
-        //    var blocks = new short[,]
-        //    {
-        //        {0, 1},
-        //        {0, 1},
-        //        {1, 1}
-        //    };
-        //    return new Tetromino(texture, blocks);
-        //}
+        protected Vector2[] wk_ninetyOneEighty = new Vector2[]
+        {
+            new Vector2(1,  0),
+            new Vector2(1, -1),
+            new Vector2(0,  1),
+            new Vector2(1,  1)
+        };
+
+        protected Vector2[] wk_oneEightyTwoSixty = new Vector2[]
+        {
+            new Vector2(1,  0),
+            new Vector2(1,  1),
+            new Vector2(0, -1),
+            new Vector2(1, -1)
+        };
+
+        protected Vector2[] wk_twoSixtyZero = new Vector2[]
+        {
+            new Vector2(-1,  0),
+            new Vector2(-1, -1),
+            new Vector2( 0,  1),
+            new Vector2(-1,  1)
+        };
 
         private float staggeredYPosition = 0f;
         private float staggeredXPosition = 0f;
         private float staggeredRotate = 0f;
 
-        public Tetromino(Gameboard parent, Vector2 size)
+        public Tetromino(Gameboard parent)
         {
             Parent = parent;
             Position = Vector2.Zero;
             Blocks = new List<Block>();
-            Size = size;
+            SpinState = SpinState.Zero;
         }
 
         public Gameboard Parent { get; set; }
+
+        protected SpinState SpinState { get; private set; }
 
         public Vector2 Position { get; private set; }
 
@@ -108,11 +81,11 @@ namespace mono_tetris.Desktop
             }
         }
 
-        public List<Block> Blocks { get; set; }
+        public List<Block> Blocks { get; protected set; }
 
-        public Vector2 Size { get; set; }
+        public Vector2 Size { get; protected set; }
 
-        private void Move(int x = 0, int y = 0)
+        protected void Move(int x = 0, int y = 0)
         {
             var prevPos = Position;
             Position = new Vector2(Position.X + x, Position.Y - y);
@@ -174,7 +147,9 @@ namespace mono_tetris.Desktop
 
         public void RotateRight(int amount)
         {
+            var rotSpinState = (SpinState)(((int)SpinState + 1) % 4);
             staggeredRotate = 0;
+
             List<Vector2> prevPos = new List<Vector2>();
             foreach (var block in Blocks)
             {
@@ -183,6 +158,15 @@ namespace mono_tetris.Desktop
             }
 
             var collision = Parent.CheckCollision(this);
+
+            if (collision != CollisionType.None)
+            {
+                var wallkick = TryWallKick(rotSpinState);
+                if (wallkick)
+                {
+                    collision = CollisionType.None;
+                }
+            }
 
             if (collision == CollisionType.GameboardWall)
             {
@@ -193,6 +177,11 @@ namespace mono_tetris.Desktop
             {
                 for (var i = 0; i < Blocks.Count; i++)
                     Blocks[i].Position = prevPos[i];
+            }
+
+            if (collision == CollisionType.None)
+            {
+                SpinState = rotSpinState;
             }
         }
 
@@ -205,6 +194,37 @@ namespace mono_tetris.Desktop
                 staggeredRotate = staggeredRotate % WIDTH;
                 RotateRight(rotations);
             }
+        }
+
+        protected virtual bool TryWallKick(SpinState rotSpinState)
+        {
+            Vector2[] wallKicks = null;
+
+            if (SpinState == SpinState.Zero && rotSpinState == SpinState.Ninety)
+                wallKicks = wk_zeroNinety;
+
+            if (SpinState == SpinState.Ninety && rotSpinState == SpinState.OneEighty)
+                wallKicks = wk_ninetyOneEighty;
+
+            if (SpinState == SpinState.OneEighty && rotSpinState == SpinState.TwoSixty)
+                wallKicks = wk_oneEightyTwoSixty;
+
+            if (SpinState == SpinState.TwoSixty && rotSpinState == SpinState.Zero)
+                wallKicks = wk_twoSixtyZero;
+
+            foreach (var attempt in wallKicks)
+            {
+                var prevPos = Position;
+                Position = new Vector2(Position.X + attempt.X, Position.Y + attempt.Y);
+
+                var collision = Parent.CheckCollision(this);
+                if (collision == CollisionType.None)
+                    return true;
+
+                Position = prevPos;
+            }
+
+            return false;
         }
     }
 }
