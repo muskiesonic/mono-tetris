@@ -5,16 +5,19 @@ using Microsoft.Xna.Framework.Input;
 
 namespace mono_tetris.Desktop
 {
-    /// <summary>
-    /// This is the main type for your game.
-    /// </summary>
     public class Game1 : Game
     {
+        static int WINDOW_WIDTH = 800;
+        static int WINDOW_HEIGHT = 600;
+
         GraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;
         KeyboardState previousKeyState;
         Texture2D redBlockTexture;
         Tetromino currentPiece;
+        Gameboard gameboard;
+        Texture2D gameboardTexture;
+
         float fallSpeed = Tetromino.HEIGHT;
         float moveSpeed = Tetromino.WIDTH * 5;
         float rotateSpeed = Tetromino.WIDTH * 2;
@@ -23,55 +26,49 @@ namespace mono_tetris.Desktop
         {
             graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
+
+            graphics.PreferredBackBufferWidth = WINDOW_WIDTH;
+            graphics.PreferredBackBufferHeight = WINDOW_HEIGHT;
+            graphics.ApplyChanges();
         }
 
-        /// <summary>
-        /// Allows the game to perform any initialization it needs to before starting to run.
-        /// This is where it can query for any required services and load any non-graphic
-        /// related content.  Calling base.Initialize will enumerate through any components
-        /// and initialize them as well.
-        /// </summary>
         protected override void Initialize()
         {
-            redBlockTexture = new Texture2D(GraphicsDevice, Tetromino.HEIGHT, Tetromino.WIDTH);
+            redBlockTexture = new Texture2D(GraphicsDevice, Tetromino.WIDTH, Tetromino.HEIGHT);
             Color[] colorData = new Color[Tetromino.HEIGHT * Tetromino.WIDTH];
             for (var i = 0; i < Tetromino.HEIGHT * Tetromino.WIDTH; i++)
                 colorData[i] = Color.Red;
             redBlockTexture.SetData<Color>(colorData);
+
+            gameboardTexture = new Texture2D(GraphicsDevice, Tetromino.WIDTH * 19, Tetromino.HEIGHT * 25);
+            colorData = new Color[Tetromino.WIDTH * 19 * Tetromino.HEIGHT * 25];
+            for (var i = 0; i < Tetromino.WIDTH * 19 * Tetromino.HEIGHT * 25; i++)
+                colorData[i] = Color.DimGray;
+            gameboardTexture.SetData<Color>(colorData);
 
             previousKeyState = Keyboard.GetState();
 
             base.Initialize();
         }
 
-        /// <summary>
-        /// LoadContent will be called once per game and is the place to load
-        /// all of your content.
-        /// </summary>
         protected override void LoadContent()
         {
             // Create a new SpriteBatch, which can be used to draw textures.
             spriteBatch = new SpriteBatch(GraphicsDevice);
 
-            currentPiece = Tetromino.T(redBlockTexture, new Vector2(21 * Tetromino.WIDTH, 2 * Tetromino.HEIGHT));
+            gameboard = new Gameboard(gameboardTexture, new Vector2(WINDOW_WIDTH / 2 - 19 / 2 * Tetromino.WIDTH, WINDOW_HEIGHT / 2 - 25 / 2 * Tetromino.HEIGHT), new Vector2(19, 25));
+            currentPiece = Tetromino.T(gameboard, redBlockTexture);
+            gameboard.SetCurrentPiece(currentPiece);
         }
 
-        /// <summary>
-        /// UnloadContent will be called once per game and is the place to unload
-        /// game-specific content.
-        /// </summary>
         protected override void UnloadContent()
         {
-            // TODO: Unload any non ContentManager content here
+            redBlockTexture.Dispose();
         }
 
-        /// <summary>
-        /// Allows the game to run logic such as updating the world,
-        /// checking for collisions, gathering input, and playing audio.
-        /// </summary>
-        /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Update(GameTime gameTime)
         {
+            // User Interaction
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
 
@@ -101,21 +98,27 @@ namespace mono_tetris.Desktop
 
             previousKeyState = keyState;
 
+            // Update Game State
             currentPiece.MoveDown((float)(gameTime.ElapsedGameTime.TotalSeconds * fallSpeed));
 
             base.Update(gameTime);
         }
 
-        /// <summary>
-        /// This is called when the game should draw itself.
-        /// </summary>
-        /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Draw(GameTime gameTime)
         {
             GraphicsDevice.Clear(Color.CornflowerBlue);
 
             spriteBatch.Begin();
-            currentPiece.Draw(spriteBatch);
+
+            spriteBatch.Draw(gameboard.Texture, gameboard.Position, Color.White);
+
+            foreach (var block in gameboard.CurrentPiece.Blocks)
+            {
+                var posX = gameboard.Position.X + gameboard.CurrentPiece.Position.X * Tetromino.WIDTH + block.Position.X * Tetromino.WIDTH;
+                var posY = gameboard.Position.Y + gameboard.CurrentPiece.Position.Y * Tetromino.HEIGHT + block.Position.Y * Tetromino.HEIGHT;
+                spriteBatch.Draw(block.Texture, new Vector2(posX, posY), Color.White);
+            }
+
             spriteBatch.End();
 
             base.Draw(gameTime);
