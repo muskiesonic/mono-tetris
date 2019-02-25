@@ -1,105 +1,105 @@
 ﻿using System;
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
 namespace mono_tetris.Desktop
 {
-    public class Tetromino
+    public enum SpinState
+    {
+        Zero,
+        Ninety,
+        OneEighty,
+        TwoSixty
+    };
+
+    public abstract class Tetromino
     {
         public static short HEIGHT = 16;
         public static short WIDTH = 16;
 
-        public static Tetromino Square(Texture2D texture, Vector2 postion)
+        public static Tetromino T(Gameboard parent, Texture2D texture)
         {
-            var blocks = new short[,]
-            {
-                {1, 1},
-                {1, 1}
-            };
-            return new Tetromino(texture, postion, blocks);
+            return new TTetrimino(parent, texture);
         }
 
-        public static Tetromino I(Texture2D texture, Vector2 postion)
-        {
-            var blocks = new short[,]
-            {
-                {1},
-                {1},
-                {1},
-                {1}
-            };
-            return new Tetromino(texture, postion, blocks);
-        }
+        protected Vector2[] wk_zeroNinety = new Vector2[]
+        { 
+            new Vector2(-1,  0),
+            new Vector2(-1,  1),
+            new Vector2( 0, -1),
+            new Vector2(-1, -1)
+        };
 
-        public static Tetromino Z(Texture2D texture, Vector2 postion)
+        protected Vector2[] wk_ninetyOneEighty = new Vector2[]
         {
-            var blocks = new short[,]
-            {
-                {1, 1, 0},
-                {0, 1, 1}
-            };
-            return new Tetromino(texture, postion, blocks);
-        }
+            new Vector2(1,  0),
+            new Vector2(1, -1),
+            new Vector2(0,  1),
+            new Vector2(1,  1)
+        };
 
-        public static Tetromino S(Texture2D texture, Vector2 postion)
+        protected Vector2[] wk_oneEightyTwoSixty = new Vector2[]
         {
-            var blocks = new short[,]
-            {
-                {0, 1, 1},
-                {1, 1, 0}
-            };
-            return new Tetromino(texture, postion, blocks);
-        }
+            new Vector2(1,  0),
+            new Vector2(1,  1),
+            new Vector2(0, -1),
+            new Vector2(1, -1)
+        };
 
-        public static Tetromino T(Texture2D texture, Vector2 postion)
+        protected Vector2[] wk_twoSixtyZero = new Vector2[]
         {
-            var blocks = new short[,]
-            {
-                {0, 0, 0},
-                {1, 1, 1},
-                {0, 1, 0}
-            };
-            return new Tetromino(texture, postion, blocks);
-        }
-
-        public static Tetromino L(Texture2D texture, Vector2 postion)
-        {
-            var blocks = new short[,]
-            {
-                {1, 0},
-                {1, 0},
-                {1, 1}
-            };
-            return new Tetromino(texture, postion, blocks);
-        }
-
-        public static Tetromino BackwardsL(Texture2D texture, Vector2 postion)
-        {
-            var blocks = new short[,]
-            {
-                {0, 1},
-                {0, 1},
-                {1, 1}
-            };
-            return new Tetromino(texture, postion, blocks);
-        }
+            new Vector2(-1,  0),
+            new Vector2(-1, -1),
+            new Vector2( 0,  1),
+            new Vector2(-1,  1)
+        };
 
         private float staggeredYPosition = 0f;
         private float staggeredXPosition = 0f;
         private float staggeredRotate = 0f;
 
-        public Tetromino(Texture2D texture, Vector2 position, short[,] blocks)
+        public Tetromino(Gameboard parent)
         {
-            Texture = texture;
-            Position = position;
-            Blocks = blocks;
+            Parent = parent;
+            Position = Vector2.Zero;
+            Blocks = new List<Block>();
+            SpinState = SpinState.Zero;
         }
 
-        public Texture2D Texture { get; set; }
+        public Gameboard Parent { get; set; }
 
-        public Vector2 Position { get; set; }
+        protected SpinState SpinState { get; private set; }
 
-        public short[,] Blocks { get; set; }
+        public Vector2 Position { get; private set; }
+
+        public Vector2 GamePosition
+        {
+            get
+            {
+                return Position;
+            }
+        }
+
+        public List<Block> Blocks { get; protected set; }
+
+        public Vector2 Size { get; protected set; }
+
+        protected void Move(int x = 0, int y = 0)
+        {
+            var prevPos = Position;
+            Position = new Vector2(Position.X + x, Position.Y - y);
+
+            var collision = Parent.CheckCollision(this);
+            if (collision == CollisionType.GameboardWall)
+            {
+                Position = prevPos;
+            }
+            if (collision == CollisionType.GameboardFloor)
+            {
+                Position = prevPos;
+            }
+        }
 
         public void MoveDown(float amount)
         {
@@ -108,18 +108,18 @@ namespace mono_tetris.Desktop
             {
                 int blocksMoved = (int)(staggeredYPosition / HEIGHT);
                 staggeredYPosition = staggeredYPosition % HEIGHT;
-                Position = new Vector2(Position.X, Position.Y + (blocksMoved * HEIGHT));
+                Move(y: -blocksMoved);
             }
         }
 
         public void ShiftLeft(int amount)
         {
-            Position = new Vector2(Position.X - (amount * WIDTH), Position.Y);
+            Move(x: -amount);
         }
 
         public void ShiftRight(int amount)
         {
-            Position = new Vector2(Position.X + (amount * WIDTH), Position.Y);
+            Move(x: amount);
         }
 
         public void MoveLeft(float amount)
@@ -129,7 +129,7 @@ namespace mono_tetris.Desktop
             {
                 int blocksMoved = (int)(staggeredXPosition / WIDTH);
                 staggeredXPosition = staggeredXPosition % WIDTH;
-                Position = new Vector2(Position.X - (blocksMoved * WIDTH), Position.Y);
+                Move(x: -blocksMoved);
             }
         }
 
@@ -140,23 +140,49 @@ namespace mono_tetris.Desktop
             {
                 int blocksMoved = (int)(staggeredXPosition / WIDTH);
                 staggeredXPosition = staggeredXPosition % WIDTH;
-                Position = new Vector2(Position.X + (blocksMoved * WIDTH), Position.Y);
+                Move(x: blocksMoved);
+
             }
         }
 
         public void RotateRight(int amount)
         {
-            var rows = Blocks.GetLength(0) - 1;
-            var cols = Blocks.GetLength(1) - 1;
-            var newPositions = new short[Blocks.GetLength(0), Blocks.GetLength(1)];
-            for (var i = 0; i < Blocks.GetLength(0); i++)
+            var rotSpinState = (SpinState)(((int)SpinState + 1) % 4);
+            staggeredRotate = 0;
+
+            List<Vector2> prevPos = new List<Vector2>();
+            foreach (var block in Blocks)
             {
-                for (var j = 0; j < Blocks.GetLength(1); j++)
+                prevPos.Add(block.Position);
+                block.Position = new Vector2(Size.Y - block.Position.Y, block.Position.X);
+            }
+
+            var collision = Parent.CheckCollision(this);
+
+            if (collision != CollisionType.None)
+            {
+                var wallkick = TryWallKick(rotSpinState);
+                if (wallkick)
                 {
-                    newPositions[j, cols - i] = Blocks[i, j];
+                    collision = CollisionType.None;
                 }
             }
-            Blocks = newPositions;
+
+            if (collision == CollisionType.GameboardWall)
+            {
+                for (var i = 0; i < Blocks.Count; i++)
+                    Blocks[i].Position = prevPos[i];
+            }
+            if (collision == CollisionType.GameboardFloor)
+            {
+                for (var i = 0; i < Blocks.Count; i++)
+                    Blocks[i].Position = prevPos[i];
+            }
+
+            if (collision == CollisionType.None)
+            {
+                SpinState = rotSpinState;
+            }
         }
 
         public void RotateRight(float amount)
@@ -166,27 +192,39 @@ namespace mono_tetris.Desktop
             {
                 int rotations = (int)(staggeredRotate / WIDTH);
                 staggeredRotate = staggeredRotate % WIDTH;
-
-                var rows = Blocks.GetLength(0) - 1;
-                var cols = Blocks.GetLength(1) - 1;
-                var newPositions = new short[Blocks.GetLength(0), Blocks.GetLength(1)];
-                for (var i = 0; i < Blocks.GetLength(0); i++)
-                {
-                    for (var j = 0; j < Blocks.GetLength(1); j++)
-                    {
-                        newPositions[j, cols - i] = Blocks[i, j];
-                    }
-                }
-                Blocks = newPositions;
+                RotateRight(rotations);
             }
         }
 
-        public void Draw(SpriteBatch spriteBatch)
+        protected virtual bool TryWallKick(SpinState rotSpinState)
         {
-            for (var i = 0; i < Blocks.GetLength(0); i++)
-                for (var j = 0; j < Blocks.GetLength(1); j++)
-                    if (Blocks[i, j] == 1)
-                        spriteBatch.Draw(Texture, new Vector2(Position.X + (j * WIDTH), Position.Y + (i * HEIGHT)), Color.White);
+            Vector2[] wallKicks = null;
+
+            if (SpinState == SpinState.Zero && rotSpinState == SpinState.Ninety)
+                wallKicks = wk_zeroNinety;
+
+            if (SpinState == SpinState.Ninety && rotSpinState == SpinState.OneEighty)
+                wallKicks = wk_ninetyOneEighty;
+
+            if (SpinState == SpinState.OneEighty && rotSpinState == SpinState.TwoSixty)
+                wallKicks = wk_oneEightyTwoSixty;
+
+            if (SpinState == SpinState.TwoSixty && rotSpinState == SpinState.Zero)
+                wallKicks = wk_twoSixtyZero;
+
+            foreach (var attempt in wallKicks)
+            {
+                var prevPos = Position;
+                Position = new Vector2(Position.X + attempt.X, Position.Y + attempt.Y);
+
+                var collision = Parent.CheckCollision(this);
+                if (collision == CollisionType.None)
+                    return true;
+
+                Position = prevPos;
+            }
+
+            return false;
         }
     }
 }
